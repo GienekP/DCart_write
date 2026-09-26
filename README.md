@@ -11,6 +11,6 @@ This is sample code demonstrating how to write to the flash memory of a DCart ca
 
 3) Write byte, X register which byte, A register value
 
-		lda # what
+		lda # value
 		ldx # where
 		jsr WRITEDC
