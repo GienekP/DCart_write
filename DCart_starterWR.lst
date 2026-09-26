@@ -1,0 +1,493 @@
+mads 2.1.7
+   210 						OPT b-h-f+l+
+   211 						ORG $A000
+   212 A000					RMB
+   213 				.PAGES $20
+   214 				;-----------------------------------------------------------------------
+   215 				; WRITABLE SPACE 
+   216 A000 00 00 00 00 00 00 + WRBUFAD	:+256 dta $00
+   217 				;-----------------------------------------------------------------------
+   218 				; Copy MAIN to RAM
+   219 A100					ORG $B000
+   220 B000 A9 E4		BEGIN	lda #>RESETCD
+   221 B002 48					pha
+   222 B003 A9 76				lda #<RESETCD-1
+   223 B005 48					pha
+   224 B006 A2 27				ldx #(ENDMAIN-STRMAIN-1)
+   225 B008 BD 14 B0		@		lda STRMAIN,X
+   226 B00B 9D 00 06				sta MAIN,x
+   227 B00E CA					dex
+   228 B00F 10 F7				bpl @-
+   229 B011 4C 00 06				jmp MAIN
+   230 				;-----------------------------------------------------------------------
+   231 				; Example MAIN program
+   232 				; always run from RAM
+   233 B014			STRMAIN
+   234 0600			.LOCAL MAINDTA,MAIN
+   235 				;----------------
+   236 0600 20 13 D5				jsr DCARTOFF
+   237 						
+   238 						; stop for debug
+   239 0603 38					sec
+   240 0604 B0 FE		@		bcs @-
+   241
+   242 						; read $F0 byte
+   243 0606 A2 F0				ldx #$F0
+   244 0608 20 3D D5				jsr READDC
+   245 						
+   246 						; erase sector
+   247 060B 20 74 D5				jsr ERASEDC
+   248
+   249 						; read $F0 byte
+   250 060E A2 F0				ldx #$F0
+   251 0610 20 3D D5				jsr READDC
+   252 						
+   253 						; write 55 to $F0 byte
+   254 0613 A9 55				lda #$55
+   255 0615 A2 F0				ldx #$F0
+   256 0617 20 4A D5				jsr WRITEDC
+   257
+   258 						; read $F0 byte
+   259 061A A2 F0				ldx #$F0
+   260 061C 20 3D D5				jsr READDC
+   261
+   262 061F 20 1C D5				jsr WAITFSL
+   263 0622 20 24 D5				jsr WAITFSF
+   264
+   265 0625 4C 00 D5				jmp RTSDCRT
+   266 				;----------------
+   267 				.ENDL
+   268 B03C			ENDMAIN
+   269 				;-----------------------------------------------------------------------				
+   270 B03C					DCART_PROCEDURES
+Macro: DCART_PROCEDURES [Source: DCart_starterWR.asm]
+     3 B03C					ORG $B500
+    11 D500 60					rts
+    16 D501 20 1C D5				jsr WAITFSL
+    17 D504 8D 00 D5				sta $D500
+    18 D507 4C 77 E4				jmp RESETCD
+    23 D50A 20 24 D5				jsr WAITFSF
+    24 D50D 9D 00 D5				sta $D500,x
+    25 D510 4C 2C D5				jmp CPYT32G
+    30 D513 20 24 D5				jsr WAITFSF
+    31 D516 8D 80 D5				sta $D580+DEFAULT_BANK_OFF
+    32 D519 4C 2C D5				jmp CPYT32G
+    37 D51C A9 7A				lda #$7A
+    38 D51E CD 0B D4		@		cmp VCOUNT
+    39 D521 D0 FB				bne @-
+    40 D523 60					rts
+    45 D524 A9 7B				lda #$7B
+    46 D526 CD 0B D4		@		cmp VCOUNT
+    47 D529 90 FB				bcc @-
+    48 D52B 60					rts
+    53 D52C AD 13 D0				lda TRIG3
+    54 D52F 8D FA 03				sta GINTLK
+    55 D532 60					rts
+    60 D533 A9 01				lda #$01
+    61 D535 85 42				sta CRITIC
+    62 D537 60					rts
+    67 D538 A9 00				lda #$00
+    68 D53A 85 42				sta CRITIC
+    69 D53C 60					rts
+    74 D53D 20 24 D5				jsr WAITFSF
+    75 D540 8D 00 D5				sta $D500
+    76 D543 BD 00 A0				lda WRBUFAD,x
+    77 D546 8D 80 D5				sta $D580+DEFAULT_BANK_OFF
+    78 D549 60					rts
+    83 D54A 48					pha
+    84 D54B 8A					txa
+    85 D54C 48					pha
+    86 D54D 20 33 D5				jsr CRITICON
+    87 D550 A2 00				ldx #$00
+    88 D552 20 0A D5				jsr DCARTON
+    89 D555 20 11 B6				jsr WRITERT
+    90 D558 68					pla
+    91 D559 AA					tax
+    92 D55A 68					pla
+    93 D55B 8D 00 D5				sta $D500
+    94 D55E 9D 00 A0				sta WRBUFAD,x		
+    95 D561 20 13 D5				jsr DCARTOFF
+    96 D564 20 38 D5				jsr CRITICOFF
+    97 D567 8D 0A D4				sta WSYNC	; 4 x 6.24us
+    98 D56A 8D 0A D4				sta WSYNC
+    99 D56D 8D 0A D4				sta WSYNC
+   100 D570 8D 0A D4				sta WSYNC
+   101 D573 60					rts
+   106 D574 20 33 D5				jsr CRITICON
+   107 D577 8A					txa
+   108 D578 48					pha
+   109 D579 A2 00				ldx #$00
+   110 D57B 20 0A D5				jsr DCARTON
+   111 D57E 20 1D B6				jsr ERASERT
+   112 D581 20 13 D5				jsr DCARTOFF
+   113 D584 20 38 D5				jsr CRITICOFF
+   114 D587 A2 C8				LDX #$C8	; 25ms
+   115 D589 8D 0A D4		@		sta WSYNC
+   116 D58C 8D 0A D4				sta WSYNC
+   117 D58F CA					dex
+   118 D590 D0 F7				bne @-
+   119 D592 68					pla
+   120 D593 AA					tax
+   121 D594 60					rts
+   126 B595					ORG $B600
+   128 B600 A9 AA		FLASHST lda #$AA
+   129 B602 8D 02 D5				sta $D502
+   130 B605 8D 55 B5				sta $B555	; 1st AA->5555
+   131 B608 A9 55				lda #$55
+   132 B60A 8D 01 D5				sta $D501
+   133 B60D 8D AA AA				sta $AAAA	; 2nd 55->2AAA
+   134 B610 60					rts
+   136 B611 20 00 B6		WRITERT	jsr FLASHST
+   137 B614 A9 A0				lda #$A0	; A0 command
+   138 B616 8D 02 D5				sta $D502
+   139 B619 8D 55 B5				sta $B555	; 3rd A0->5555
+   140 B61C 60					rts
+   142 B61D 20 00 B6		ERASERT jsr FLASHST
+   143 B620 A9 80				lda #$80	; 80 command
+   144 B622 8D 02 D5				sta $D502
+   145 B625 8D 55 B5				sta $B555	; 3rd 80->5555
+   146 B628 A9 AA				lda #$AA
+   147 B62A 8D 02 D5				sta $D502
+   148 B62D 8D 55 B5				sta $B555	; 4th AA->5555
+   149 B630 A9 55				lda #$55
+   150 B632 8D 01 D5				sta $D501
+   151 B635 8D AA AA				sta $AAAA	; 5tg 55->2AAA
+   152 B638 A9 30				lda #$30	; SST39SF040
+   153 B63A 8D 00 D5				sta $D500	; sector 0
+   154 B63D 8D 00 A0				sta $A000	; 6th 30->SA
+   155 B640 60					rts
+Source: DCart_starterWR.asm
+   271 				;-----------------------------------------------------------------------		
+   272 				; INITCART ROUTINE
+   273 B641					ORG $BFD0
+   274 BFD0 AD 1F D0		INIT	lda CONSOL
+   275 BFD3 29 02				and #$02
+   276 BFD5 D0 14				bne CONTIN
+   277 BFD7 A2 05				ldx #(CONTIN-STANDR-1)
+   278 BFD9 BD E5 BF		@		lda STANDR,X
+   279 BFDC 9D 00 01				sta STCKPRC,x
+   280 BFDF CA					dex
+   281 BFE0 10 F7				bpl @-
+   282 BFE2 4C 00 01				jmp STCKPRC
+   283 BFE5 8D FF D5		STANDR  sta $D5FF
+   284 BFE8 4C 77 E4				jmp RESETCD
+   285 BFEB 8D 00 D5		CONTIN	sta $D500
+   286 BFEE 60					rts
+   287 				;-----------------------------------------------------------------------		
+   288 BFEF					ORG $BFF3
+   289 BFF3 8D 00 D5				sta $D500	; Don't touch
+   290 BFF6 4C 77 E4				jmp RESETCD
+   291 				;-----------------------------------------------------------------------
+   292 BFF9					ORG $BFF9
+   293 BFF9 00					dta $00		; Bank number 0
+   294 				;-----------------------------------------------------------------------
+   295 				; CARTRIDGE HEADER
+   296 BFFA					ORG $BFFA
+   297 BFFA 00 B0 00 04 D0 BF			dta <BEGIN, >BEGIN, $00, $04, <INIT, >INIT
+   298 				;-----------------------------------------------------------------------
+   299 C000			.ENDPG
+   300 				;=======================================================================
+   301 				; DCart BANK 1
+   302 				; Write Procedures
+   303 				;-----------------------------------------------------------------------
+   304 						OPT f-
+   305 C000					ORG $A000
+   306 						OPT f+
+   307 01,A000					NMB
+   308 01,A000			.PAGES $20
+   309 				;-----------------------------------------------------------------------
+   310 				; EMPTY
+   311 01,A000 FF				dta $FF
+   312 				;-----------------------------------------------------------------------				
+   313 						; ...
+   314 						; empty
+   315 						; ...
+   316 01,A001					DCART_PROCEDURES
+Macro: DCART_PROCEDURES [Source: DCart_starterWR.asm]
+     3 01,A001					ORG $B500
+    11 01,D500 60				rts
+    16 01,D501 20 1C D5				jsr WAITFSL
+    17 01,D504 8D 00 D5				sta $D500
+    18 01,D507 4C 77 E4				jmp RESETCD
+    23 01,D50A 20 24 D5				jsr WAITFSF
+    24 01,D50D 9D 00 D5				sta $D500,x
+    25 01,D510 4C 2C D5				jmp CPYT32G
+    30 01,D513 20 24 D5				jsr WAITFSF
+    31 01,D516 8D 80 D5				sta $D580+DEFAULT_BANK_OFF
+    32 01,D519 4C 2C D5				jmp CPYT32G
+    37 01,D51C A9 7A				lda #$7A
+    38 01,D51E CD 0B D4		@		cmp VCOUNT
+    39 01,D521 D0 FB				bne @-
+    40 01,D523 60				rts
+    45 01,D524 A9 7B				lda #$7B
+    46 01,D526 CD 0B D4		@		cmp VCOUNT
+    47 01,D529 90 FB				bcc @-
+    48 01,D52B 60				rts
+    53 01,D52C AD 13 D0				lda TRIG3
+    54 01,D52F 8D FA 03				sta GINTLK
+    55 01,D532 60				rts
+    60 01,D533 A9 01				lda #$01
+    61 01,D535 85 42				sta CRITIC
+    62 01,D537 60				rts
+    67 01,D538 A9 00				lda #$00
+    68 01,D53A 85 42				sta CRITIC
+    69 01,D53C 60				rts
+    74 01,D53D 20 24 D5				jsr WAITFSF
+    75 01,D540 8D 00 D5				sta $D500
+    76 01,D543 BD 00 A0				lda WRBUFAD,x
+    77 01,D546 8D 80 D5				sta $D580+DEFAULT_BANK_OFF
+    78 01,D549 60				rts
+    83 01,D54A 48				pha
+    84 01,D54B 8A				txa
+    85 01,D54C 48				pha
+    86 01,D54D 20 33 D5				jsr CRITICON
+    87 01,D550 A2 00				ldx #$00
+    88 01,D552 20 0A D5				jsr DCARTON
+    89 01,D555 20 11 B6				jsr WRITERT
+    90 01,D558 68				pla
+    91 01,D559 AA				tax
+    92 01,D55A 68				pla
+    93 01,D55B 8D 00 D5				sta $D500
+    94 01,D55E 9D 00 A0				sta WRBUFAD,x		
+    95 01,D561 20 13 D5				jsr DCARTOFF
+    96 01,D564 20 38 D5				jsr CRITICOFF
+    97 01,D567 8D 0A D4				sta WSYNC	; 4 x 6.24us
+    98 01,D56A 8D 0A D4				sta WSYNC
+    99 01,D56D 8D 0A D4				sta WSYNC
+   100 01,D570 8D 0A D4				sta WSYNC
+   101 01,D573 60				rts
+   106 01,D574 20 33 D5				jsr CRITICON
+   107 01,D577 8A				txa
+   108 01,D578 48				pha
+   109 01,D579 A2 00				ldx #$00
+   110 01,D57B 20 0A D5				jsr DCARTON
+   111 01,D57E 20 1D B6				jsr ERASERT
+   112 01,D581 20 13 D5				jsr DCARTOFF
+   113 01,D584 20 38 D5				jsr CRITICOFF
+   114 01,D587 A2 C8				LDX #$C8	; 25ms
+   115 01,D589 8D 0A D4		@		sta WSYNC
+   116 01,D58C 8D 0A D4				sta WSYNC
+   117 01,D58F CA				dex
+   118 01,D590 D0 F7				bne @-
+   119 01,D592 68				pla
+   120 01,D593 AA				tax
+   121 01,D594 60				rts
+   126 01,B595					ORG $B600
+   128 01,B600 A9 AA		FLASHST lda #$AA
+   129 01,B602 8D 02 D5				sta $D502
+   130 01,B605 8D 55 B5				sta $B555	; 1st AA->5555
+   131 01,B608 A9 55				lda #$55
+   132 01,B60A 8D 01 D5				sta $D501
+   133 01,B60D 8D AA AA				sta $AAAA	; 2nd 55->2AAA
+   134 01,B610 60				rts
+   136 01,B611 20 00 B6		WRITERT	jsr FLASHST
+   137 01,B614 A9 A0				lda #$A0	; A0 command
+   138 01,B616 8D 02 D5				sta $D502
+   139 01,B619 8D 55 B5				sta $B555	; 3rd A0->5555
+   140 01,B61C 60				rts
+   142 01,B61D 20 00 B6		ERASERT jsr FLASHST
+   143 01,B620 A9 80				lda #$80	; 80 command
+   144 01,B622 8D 02 D5				sta $D502
+   145 01,B625 8D 55 B5				sta $B555	; 3rd 80->5555
+   146 01,B628 A9 AA				lda #$AA
+   147 01,B62A 8D 02 D5				sta $D502
+   148 01,B62D 8D 55 B5				sta $B555	; 4th AA->5555
+   149 01,B630 A9 55				lda #$55
+   150 01,B632 8D 01 D5				sta $D501
+   151 01,B635 8D AA AA				sta $AAAA	; 5tg 55->2AAA
+   152 01,B638 A9 30				lda #$30	; SST39SF040
+   153 01,B63A 8D 00 D5				sta $D500	; sector 0
+   154 01,B63D 8D 00 A0				sta $A000	; 6th 30->SA
+   155 01,B640 60				rts
+Source: DCart_starterWR.asm
+   317 						; ...
+   318 						; empty
+   319 						; ...
+   320 01,B641					DCART_HEADER
+Macro: DCART_HEADER [Source: DCart_starterWR.asm]
+     3 01,B641					ORG $BFF3
+     4 01,BFF3 8D 00 D5		BCKFUNB	sta $D500	; Don't touch
+     5 01,BFF6 4C 77 E4				jmp RESETCD
+     7 01,BFF9					ORG $BFF9
+     8 01,BFF9 01				dta b(=*)	; Bank number
+    11 01,BFFA					ORG $BFFA
+    12 01,BFFA F3 BF 00 04 F3 + 		dta <BCKFUNB, >BCKFUNB, $00, $04, <BCKFUNB, >BCKFUNB
+Source: DCart_starterWR.asm
+   321 				;-----------------------------------------------------------------------
+   322 01,C000			.ENDPG
+   323 				;=======================================================================
+   324 				; DCart BANK 2
+   325 				; Custom Bank
+   326 				;-----------------------------------------------------------------------
+   327 						OPT f-
+   328 01,C000					ORG $A000
+   329 						OPT f+
+   330 02,A000					NMB
+   331 02,A000			.PAGES $20
+   332 				;-----------------------------------------------------------------------		
+   333 				; EMPTY
+   334 02,A000 FF				dta $FF
+   335 				;-----------------------------------------------------------------------		
+   336 						; ...
+   337 						; empty
+   338 						; ...
+   339 02,A001					DCART_PROCEDURES
+Macro: DCART_PROCEDURES [Source: DCart_starterWR.asm]
+     3 02,A001					ORG $B500
+    11 02,D500 60				rts
+    16 02,D501 20 1C D5				jsr WAITFSL
+    17 02,D504 8D 00 D5				sta $D500
+    18 02,D507 4C 77 E4				jmp RESETCD
+    23 02,D50A 20 24 D5				jsr WAITFSF
+    24 02,D50D 9D 00 D5				sta $D500,x
+    25 02,D510 4C 2C D5				jmp CPYT32G
+    30 02,D513 20 24 D5				jsr WAITFSF
+    31 02,D516 8D 80 D5				sta $D580+DEFAULT_BANK_OFF
+    32 02,D519 4C 2C D5				jmp CPYT32G
+    37 02,D51C A9 7A				lda #$7A
+    38 02,D51E CD 0B D4		@		cmp VCOUNT
+    39 02,D521 D0 FB				bne @-
+    40 02,D523 60				rts
+    45 02,D524 A9 7B				lda #$7B
+    46 02,D526 CD 0B D4		@		cmp VCOUNT
+    47 02,D529 90 FB				bcc @-
+    48 02,D52B 60				rts
+    53 02,D52C AD 13 D0				lda TRIG3
+    54 02,D52F 8D FA 03				sta GINTLK
+    55 02,D532 60				rts
+    60 02,D533 A9 01				lda #$01
+    61 02,D535 85 42				sta CRITIC
+    62 02,D537 60				rts
+    67 02,D538 A9 00				lda #$00
+    68 02,D53A 85 42				sta CRITIC
+    69 02,D53C 60				rts
+    74 02,D53D 20 24 D5				jsr WAITFSF
+    75 02,D540 8D 00 D5				sta $D500
+    76 02,D543 BD 00 A0				lda WRBUFAD,x
+    77 02,D546 8D 80 D5				sta $D580+DEFAULT_BANK_OFF
+    78 02,D549 60				rts
+    83 02,D54A 48				pha
+    84 02,D54B 8A				txa
+    85 02,D54C 48				pha
+    86 02,D54D 20 33 D5				jsr CRITICON
+    87 02,D550 A2 00				ldx #$00
+    88 02,D552 20 0A D5				jsr DCARTON
+    89 02,D555 20 11 B6				jsr WRITERT
+    90 02,D558 68				pla
+    91 02,D559 AA				tax
+    92 02,D55A 68				pla
+    93 02,D55B 8D 00 D5				sta $D500
+    94 02,D55E 9D 00 A0				sta WRBUFAD,x		
+    95 02,D561 20 13 D5				jsr DCARTOFF
+    96 02,D564 20 38 D5				jsr CRITICOFF
+    97 02,D567 8D 0A D4				sta WSYNC	; 4 x 6.24us
+    98 02,D56A 8D 0A D4				sta WSYNC
+    99 02,D56D 8D 0A D4				sta WSYNC
+   100 02,D570 8D 0A D4				sta WSYNC
+   101 02,D573 60				rts
+   106 02,D574 20 33 D5				jsr CRITICON
+   107 02,D577 8A				txa
+   108 02,D578 48				pha
+   109 02,D579 A2 00				ldx #$00
+   110 02,D57B 20 0A D5				jsr DCARTON
+   111 02,D57E 20 1D B6				jsr ERASERT
+   112 02,D581 20 13 D5				jsr DCARTOFF
+   113 02,D584 20 38 D5				jsr CRITICOFF
+   114 02,D587 A2 C8				LDX #$C8	; 25ms
+   115 02,D589 8D 0A D4		@		sta WSYNC
+   116 02,D58C 8D 0A D4				sta WSYNC
+   117 02,D58F CA				dex
+   118 02,D590 D0 F7				bne @-
+   119 02,D592 68				pla
+   120 02,D593 AA				tax
+   121 02,D594 60				rts
+   126 02,B595					ORG $B600
+   128 02,B600 A9 AA		FLASHST lda #$AA
+   129 02,B602 8D 02 D5				sta $D502
+   130 02,B605 8D 55 B5				sta $B555	; 1st AA->5555
+   131 02,B608 A9 55				lda #$55
+   132 02,B60A 8D 01 D5				sta $D501
+   133 02,B60D 8D AA AA				sta $AAAA	; 2nd 55->2AAA
+   134 02,B610 60				rts
+   136 02,B611 20 00 B6		WRITERT	jsr FLASHST
+   137 02,B614 A9 A0				lda #$A0	; A0 command
+   138 02,B616 8D 02 D5				sta $D502
+   139 02,B619 8D 55 B5				sta $B555	; 3rd A0->5555
+   140 02,B61C 60				rts
+   142 02,B61D 20 00 B6		ERASERT jsr FLASHST
+   143 02,B620 A9 80				lda #$80	; 80 command
+   144 02,B622 8D 02 D5				sta $D502
+   145 02,B625 8D 55 B5				sta $B555	; 3rd 80->5555
+   146 02,B628 A9 AA				lda #$AA
+   147 02,B62A 8D 02 D5				sta $D502
+   148 02,B62D 8D 55 B5				sta $B555	; 4th AA->5555
+   149 02,B630 A9 55				lda #$55
+   150 02,B632 8D 01 D5				sta $D501
+   151 02,B635 8D AA AA				sta $AAAA	; 5tg 55->2AAA
+   152 02,B638 A9 30				lda #$30	; SST39SF040
+   153 02,B63A 8D 00 D5				sta $D500	; sector 0
+   154 02,B63D 8D 00 A0				sta $A000	; 6th 30->SA
+   155 02,B640 60				rts
+Source: DCart_starterWR.asm
+   340 						; ...
+   341 						; empty
+   342 						; ...
+   343 02,B641					DCART_HEADER
+Macro: DCART_HEADER [Source: DCart_starterWR.asm]
+     3 02,B641					ORG $BFF3
+     4 02,BFF3 8D 00 D5		BCKFUNB	sta $D500	; Don't touch
+     5 02,BFF6 4C 77 E4				jmp RESETCD
+     7 02,BFF9					ORG $BFF9
+     8 02,BFF9 02				dta b(=*)	; Bank number
+    11 02,BFFA					ORG $BFFA
+    12 02,BFFA F3 BF 00 04 F3 + 		dta <BCKFUNB, >BCKFUNB, $00, $04, <BCKFUNB, >BCKFUNB
+Source: DCart_starterWR.asm
+   344 				;-----------------------------------------------------------------------
+   345 02,C000			.ENDPG
+   346 				;=======================================================================
+   347 				; DCart BANK X
+   348 				; Custom Bank
+   349 				;-----------------------------------------------------------------------
+   350 						OPT f-
+   351 02,C000					ORG $A000
+   352 						OPT f+
+   353 03,A000					NMB
+   354 03,A000			.PAGES $20
+   355 				;-----------------------------------------------------------------------		
+   356 				; EMPTY
+   357 03,A000 FF				dta $FF
+   358 				;-----------------------------------------------------------------------
+   359 						; ...
+   360 						; empty
+   361 						; ...
+   362 03,A001					DCART_HEADER
+Macro: DCART_HEADER [Source: DCart_starterWR.asm]
+     3 03,A001					ORG $BFF3
+     4 03,BFF3 8D 00 D5		BCKFUNB	sta $D500	; Don't touch
+     5 03,BFF6 4C 77 E4				jmp RESETCD
+     7 03,BFF9					ORG $BFF9
+     8 03,BFF9 03				dta b(=*)	; Bank number
+    11 03,BFFA					ORG $BFFA
+    12 03,BFFA F3 BF 00 04 F3 + 		dta <BCKFUNB, >BCKFUNB, $00, $04, <BCKFUNB, >BCKFUNB
+Source: DCart_starterWR.asm
+   363 				;-----------------------------------------------------------------------
+   364 03,C000			.ENDPG
+   365 				;=======================================================================
+   366 				; DCart BANK Y
+   367 				; Custom Bank
+   368 				;-----------------------------------------------------------------------
+   369 						OPT f-
+   370 03,C000					ORG $A000
+   371 						OPT f+
+   372 04,A000					NMB
+   373 04,A000			.PAGES $20
+   374 				;-----------------------------------------------------------------------		
+   375 				; EMPTY
+   376 04,A000 FF				dta $FF
+   377 				;-----------------------------------------------------------------------
+   378 						; ...
+   379 						; full empty
+   380 						; ...
+   381 				;-----------------------------------------------------------------------
+   382 04,A001			.ENDPG
+   383 				;=======================================================================
